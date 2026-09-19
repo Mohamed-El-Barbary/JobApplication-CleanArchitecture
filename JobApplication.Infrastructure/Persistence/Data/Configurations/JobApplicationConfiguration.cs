@@ -1,0 +1,1 @@
+// Superseded by JobCandidateApplicationConfiguration.cs
