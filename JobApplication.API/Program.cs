@@ -14,6 +14,8 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
 using Microsoft.OpenApi;
+using JobApplication.Application;
+using Mapster;
 
 namespace JobApplication.API
 {
@@ -28,15 +30,18 @@ namespace JobApplication.API
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
-            
+
             builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("JWTOptions"));
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<IJobService, JobService>();
             builder.Services.AddScoped<IJobApplicationService, JobApplicationService>();
 
+            builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(AssemblyReference).Assembly));
+            builder.Services.AddMapster();
+
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("Connection string" 
+                ?? throw new InvalidOperationException("Connection string"
                 + "'DefaultConnection' not found.");
             builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
 
