@@ -1,7 +1,16 @@
 namespace JobApplication.API.Controllers;
 
 using JobApplication.Application.DTOs.Jobs;
+using JobApplication.Application.Features.Jobs.Commands;
+using JobApplication.Application.Features.Jobs.Commands.CloseJob;
+using JobApplication.Application.Features.Jobs.Commands.CreateJob;
+using JobApplication.Application.Features.Jobs.Commands.DeleteJob;
+using JobApplication.Application.Features.Jobs.Commands.UpdateJob;
+using JobApplication.Application.Features.Jobs.Queries.GetAllJobs;
+using JobApplication.Application.Features.Jobs.Queries.GetJobById;
+using JobApplication.Application.Features.Jobs.Queries.GetMyJobs;
 using JobApplication.Application.Interfaces;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
@@ -11,8 +20,9 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
-public class JobsController(IJobService jobService) : ControllerBase
+public class JobsController(IMediator mediator) : ControllerBase
 {
+
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<JobResponse>> Create(
@@ -20,8 +30,15 @@ public class JobsController(IJobService jobService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var result = await jobService.CreateAsync(request, userId, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { jobId = result.Id }, result);
+
+        var command = new CreateJobCommand(
+            request.Title,
+            request.Description,
+            request.EmploymentType,
+            userId);
+
+        var result = await mediator.Send(command, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { jobId = result.Value.Id }, result.Value);
     }
 
     [HttpGet]
@@ -29,8 +46,8 @@ public class JobsController(IJobService jobService) : ControllerBase
     public async Task<ActionResult<IReadOnlyCollection<JobResponse>>> GetAll(
         CancellationToken cancellationToken)
     {
-        var jobs = await jobService.GetAllAsync(cancellationToken);
-        return Ok(jobs);
+        var jobs = await mediator.Send(new GetAllJobsQuery(), cancellationToken);
+        return Ok(jobs.Value);
     }
 
     [HttpGet("{jobId:int}")]
@@ -39,8 +56,8 @@ public class JobsController(IJobService jobService) : ControllerBase
         [FromRoute] int jobId,
         CancellationToken cancellationToken)
     {
-        var job = await jobService.GetByIdAsync(jobId, cancellationToken);
-        return Ok(job);
+        var job = await mediator.Send(new GetJobByIdQuery(jobId), cancellationToken);
+        return Ok(job.Value);
     }
 
     [HttpGet("my-jobs")]
@@ -49,8 +66,8 @@ public class JobsController(IJobService jobService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var jobs = await jobService.GetMyJobsAsync(userId, cancellationToken);
-        return Ok(jobs);
+        var jobs = await mediator.Send(new GetMyJobsQuery(userId), cancellationToken);
+        return Ok(jobs.Value);
     }
 
     [HttpPut("{jobId:int}")]
@@ -61,8 +78,15 @@ public class JobsController(IJobService jobService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var updatedJob = await jobService.UpdateAsync(jobId, request, userId, cancellationToken);
-        return Ok(updatedJob);
+        var command = new UpdateJobCommand(
+            request.Title,
+            request.Description,
+            request.EmploymentType,
+            jobId,
+            userId);
+
+        var updatedJob = await mediator.Send(command, cancellationToken);
+        return Ok(updatedJob.Value);
     }
 
     [HttpDelete("{jobId:int}")]
@@ -72,8 +96,8 @@ public class JobsController(IJobService jobService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        await jobService.DeleteAsync(jobId, userId, cancellationToken);
-        return NoContent();
+        var result = await mediator.Send(new DeleteJobCommand(jobId, userId), cancellationToken);
+        return Ok(result.IsSuccess);
     }
 
     [HttpPatch("{jobId:int}/close")]
@@ -83,13 +107,16 @@ public class JobsController(IJobService jobService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        await jobService.CloseAsync(jobId, userId, cancellationToken);
-        return NoContent();
+        var result = await mediator.Send(new CloseJobCommand(jobId, userId), cancellationToken);
+        return Ok(result.IsSuccess);
     }
 
-    private string GetUserId()
+    private Guid GetUserId()
     {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException("User is not authenticated.");
+        return Guid.TryParse(
+            User.FindFirstValue(ClaimTypes.NameIdentifier),
+            out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("User is not authenticated.");
     }
 }

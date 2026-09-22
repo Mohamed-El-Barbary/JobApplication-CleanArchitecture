@@ -3,7 +3,9 @@ namespace JobApplication.Application.Implementations;
 using JobApplication.Application.DTOs.Authentication;
 using JobApplication.Application.Interfaces;
 using JobApplication.Application.Options;
+using JobApplication.Domain.Entities.Business;
 using JobApplication.Domain.Entities.Identity;
+using JobApplication.Domain.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -21,11 +23,13 @@ using System.Threading.Tasks;
 public class AuthenticationService(
     UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
-    IOptions<JwtOptions> jwtOptions) : IAuthenticationService
+    IOptions<JwtOptions> jwtOptions,
+    IUnitOfWork unitOfWork) : IAuthenticationService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly RoleManager<ApplicationRole> _roleManager = roleManager;
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
     private static readonly HashSet<string> AllowedPublicRoles = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -104,6 +108,40 @@ public class AuthenticationService(
         {
             var errors = string.Join("; ", roleResult.Errors.Select(e => e.Description));
             throw new InvalidOperationException($"Role assignment failed: {errors}");
+        }
+
+        // Create the corresponding business entity in the Business DB
+        try
+        {
+            if (assignedRole == "Candidate")
+            {
+                var candidate = new Candidate
+                {
+                    FullName = user.FullName,
+                    Email = user.Email!,
+                    CVUrl = string.Empty,
+                    UserId = user.Id
+                };
+                await _unitOfWork.Repository<Candidate>().AddAsync(candidate);
+            }
+            else
+            {
+                var recruiter = new Recruiter
+                {
+                    FullName = user.FullName,
+                    Email = user.Email!,
+                    UserId = user.Id
+                };
+                await _unitOfWork.Repository<Recruiter>().AddAsync(recruiter);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // Compensating transaction: remove the Identity user to avoid orphaned records
+            await _userManager.DeleteAsync(user);
+            throw;
         }
 
         return await CreateAuthenticationResponseAsync(user, cancellationToken);
