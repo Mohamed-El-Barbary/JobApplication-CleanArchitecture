@@ -34,7 +34,6 @@ namespace JobApplication.API
             builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("JWTOptions"));
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-            builder.Services.AddScoped<IJobApplicationService, JobApplicationService>();
 
             builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(AssemblyReference).Assembly));
             builder.Services.AddMapster();
