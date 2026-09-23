@@ -21,4 +21,6 @@ public class JobCandidateApplication : BaseEntity
         get => (JobApplicationStatus)Status;
         set => Status = (ApplicationStatus)value;
     }
+
+    public ICollection<Interview> Interviews { get; set; } = [];
 }
