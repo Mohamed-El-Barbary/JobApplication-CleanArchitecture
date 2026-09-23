@@ -4,16 +4,19 @@ using JobApplication.Infrastructure.Persistence.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace JobApplication.Infrastructure.Migrations
+namespace JobApplication.Infrastructure.Persistence.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260923204606_AddInterviewsTable")]
+    partial class AddInterviewsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -51,6 +54,50 @@ namespace JobApplication.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Candidates");
+                });
+
+            modelBuilder.Entity("JobApplication.Domain.Entities.Business.Interview", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeSpan>("Duration")
+                        .HasColumnType("time");
+
+                    b.Property<int>("JobApplicationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MeetingUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("ScheduledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobApplicationId");
+
+                    b.ToTable("Interviews");
                 });
 
             modelBuilder.Entity("JobApplication.Domain.Entities.Business.Job", b =>
@@ -102,9 +149,6 @@ namespace JobApplication.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ApplicationStatus")
-                        .HasColumnType("int");
-
                     b.Property<int>("CandidateId")
                         .HasColumnType("int");
 
@@ -112,7 +156,8 @@ namespace JobApplication.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("AppliedAt");
 
                     b.Property<int>("JobId")
                         .HasColumnType("int");
@@ -128,9 +173,10 @@ namespace JobApplication.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CandidateId");
-
                     b.HasIndex("JobId");
+
+                    b.HasIndex("CandidateId", "JobId")
+                        .IsUnique();
 
                     b.ToTable("JobApplications");
                 });
@@ -165,6 +211,17 @@ namespace JobApplication.Infrastructure.Migrations
                     b.ToTable("Recruiters");
                 });
 
+            modelBuilder.Entity("JobApplication.Domain.Entities.Business.Interview", b =>
+                {
+                    b.HasOne("JobApplication.Domain.Entities.Business.JobCandidateApplication", "JobApplication")
+                        .WithMany("Interviews")
+                        .HasForeignKey("JobApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("JobApplication");
+                });
+
             modelBuilder.Entity("JobApplication.Domain.Entities.Business.Job", b =>
                 {
                     b.HasOne("JobApplication.Domain.Entities.Business.Recruiter", "Recruiter")
@@ -181,13 +238,13 @@ namespace JobApplication.Infrastructure.Migrations
                     b.HasOne("JobApplication.Domain.Entities.Business.Candidate", "Candidate")
                         .WithMany("JobApplications")
                         .HasForeignKey("CandidateId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("JobApplication.Domain.Entities.Business.Job", "Job")
                         .WithMany("Applications")
                         .HasForeignKey("JobId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Candidate");
@@ -203,6 +260,11 @@ namespace JobApplication.Infrastructure.Migrations
             modelBuilder.Entity("JobApplication.Domain.Entities.Business.Job", b =>
                 {
                     b.Navigation("Applications");
+                });
+
+            modelBuilder.Entity("JobApplication.Domain.Entities.Business.JobCandidateApplication", b =>
+                {
+                    b.Navigation("Interviews");
                 });
 
             modelBuilder.Entity("JobApplication.Domain.Entities.Business.Recruiter", b =>
