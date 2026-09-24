@@ -1,9 +1,10 @@
-﻿using JobApplication.Domain.Entities.Business;
+using JobApplication.Domain.Entities.Business;
 using JobApplication.Domain.Repositories;
 using JobApplication.Infrastructure.Persistence.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace JobApplication.Infrastructure.Repositories;
@@ -27,4 +28,5 @@ public class Repository<T>(ApplicationDbContext dbContext) : IRepository<T> wher
     public void Delete(T entity)
         => _dbSet.Remove(entity);
 
+    public IQueryable<T> GetQueryable() => _dbSet.AsQueryable();
 }

@@ -4,6 +4,7 @@ using JobApplication.Application.Interfaces;
 using JobApplication.Application.Options;
 using JobApplication.Domain.Entities.Identity;
 using JobApplication.Domain.Repositories;
+using JobApplication.Infrastructure;
 using JobApplication.Infrastructure.Persistence.Data.DbContexts;
 using JobApplication.Infrastructure.Persistence.IdentityData.DbContexts;
 using JobApplication.Infrastructure.Repositories;
@@ -34,6 +35,9 @@ namespace JobApplication.API
             builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("JWTOptions"));
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // Register all Infrastructure services (IIdentityService, ICurrentUserService, ICloudinaryService, IEmailService, Hangfire)
+            builder.Services.AddInfrastructure(builder.Configuration);
 
             builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(AssemblyReference).Assembly));
             builder.Services.AddMapster();

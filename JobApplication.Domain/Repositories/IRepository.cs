@@ -1,6 +1,7 @@
-﻿using JobApplication.Domain.Entities.Business;
+using JobApplication.Domain.Entities.Business;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace JobApplication.Domain.Repositories;
@@ -12,4 +13,5 @@ public interface IRepository<T> where T : BaseEntity
     Task AddAsync(T entity);
     void Update(T entity);
     void Delete(T entity);
+    IQueryable<T> GetQueryable();
 }
