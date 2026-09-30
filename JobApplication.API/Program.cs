@@ -1,5 +1,4 @@
 
-using JobApplication.Application.Implementations;
 using JobApplication.Application.Interfaces;
 using JobApplication.Application.Options;
 using JobApplication.Domain.Entities.Identity;
@@ -17,6 +16,7 @@ using System.Text;
 using Microsoft.OpenApi;
 using JobApplication.Application;
 using Mapster;
+using StackExchange.Redis;
 
 namespace JobApplication.API
 {
@@ -33,7 +33,6 @@ namespace JobApplication.API
             builder.Services.AddOpenApi();
 
             builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("JWTOptions"));
-            builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Register all Infrastructure services (IIdentityService, ICurrentUserService, ICloudinaryService, IEmailService, Hangfire)
@@ -50,6 +49,11 @@ namespace JobApplication.API
             builder.Services.AddDbContext<ApplicationIdentityDbContext>(options =>
             {
                 options.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection"));
+            });
+
+            builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                return ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("RedisConnection")!);
             });
 
             builder.Services.AddIdentityCore<ApplicationUser>()
