@@ -1,6 +1,7 @@
 namespace JobApplication.Infrastructure.Services.Email;
 
 using JobApplication.Application.Interfaces;
+using JobApplication.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Resend;
@@ -13,16 +14,26 @@ public class ResendEmailService(
     IConfiguration configuration,
     ILogger<ResendEmailService> logger) : IEmailService
 {
-    public async Task SendPasswordResetEmailAsync(string to, string resetLink, CancellationToken cancellationToken = default)
+    public async Task SendOtpEmailAsync(string to, string otp, OtpPurpose purpose, CancellationToken cancellationToken = default)
     {
-        var htmlBody = EmailTemplates.PasswordResetEmail(resetLink);
-        await SendEmailInternalAsync(to, "Reset your password", htmlBody, cancellationToken);
-    }
+        var subject = purpose switch
+        {
+            OtpPurpose.EmailVerification => "Verify your email address",
+            OtpPurpose.PasswordReset => "Reset your password",
+            OtpPurpose.ChangeEmail => "Confirm your new email address",
+            OtpPurpose.ChangePhoneNumber => "Verify your phone number",
+            OtpPurpose.TwoFactorAuthentication => "Your verification code",
+            OtpPurpose.LoginVerification => "Your login verification code",
+            _ => "Your verification code"
+        };
 
-    public async Task SendVerificationEmailAsync(string to, string verificationLink, CancellationToken cancellationToken = default)
-    {
-        var htmlBody = EmailTemplates.VerificationEmail(verificationLink);
-        await SendEmailInternalAsync(to, "Verify your email address", htmlBody, cancellationToken);
+        var htmlBody = EmailTemplates.OtpEmail(otp,purpose);
+
+        await SendEmailInternalAsync(
+            to,
+            subject,
+            htmlBody,
+            cancellationToken);
     }
 
     private async Task SendEmailInternalAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
