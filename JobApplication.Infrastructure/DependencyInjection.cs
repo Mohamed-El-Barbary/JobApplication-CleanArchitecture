@@ -1,7 +1,9 @@
 using Hangfire;
 using Hangfire.AspNetCore;
 using JobApplication.Application.Interfaces;
+using JobApplication.Domain.Repositories;
 using JobApplication.Infrastructure.Options;
+using JobApplication.Infrastructure.Repositories;
 using JobApplication.Infrastructure.Services;
 using JobApplication.Infrastructure.Services.Email;
 using Microsoft.Extensions.Configuration;
@@ -38,6 +40,8 @@ public static class DependencyInjection
         });
         services.AddTransient<IResend, ResendClient>();
         services.AddScoped<IEmailService, ResendEmailService>();
+        services.AddScoped<IOtpService, OtpService>();
+        services.AddScoped<IOtpRepository, RedisOtpRepository>();
 
         // Hangfire
         services.AddHangfire(config => config

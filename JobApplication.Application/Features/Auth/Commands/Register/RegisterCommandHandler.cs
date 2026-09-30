@@ -1,28 +1,28 @@
 namespace JobApplication.Application.Features.Auth.Commands.Register;
 
+using Hangfire;
 using JobApplication.Application.DTOs.Authentication;
 using JobApplication.Application.Interfaces;
 using JobApplication.Domain.Common;
 using JobApplication.Domain.Entities.Business;
 using JobApplication.Domain.Entities.Identity;
+using JobApplication.Domain.Enums;
 using JobApplication.Domain.Repositories;
 using Mapster;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-
 using System.Web;
-using Hangfire;
-using Microsoft.Extensions.Configuration;
 
 internal class RegisterCommandHandler(
     IIdentityService identityService,
     IJwtTokenGenerator jwtTokenGenerator,
     IUnitOfWork unitOfWork,
     IBackgroundJobClient backgroundJobClient,
-    IConfiguration configuration) : IRequestHandler<RegisterCommand, Result<AuthenticationResponse>>
+    IOtpService otpService) : IRequestHandler<RegisterCommand, Result<AuthenticationResponse>>
 {
     public async Task<Result<AuthenticationResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
@@ -99,23 +99,18 @@ internal class RegisterCommandHandler(
 
         var addRefreshTokenResult = await identityService.AddRefreshTokenAsync(user, refreshTokenEntity, cancellationToken);
         if (addRefreshTokenResult.IsFailure)
-        {
             return addRefreshTokenResult.Error!;
-        }
 
-        // Generate Email Verification Token
-        var tokenResult = await identityService.GenerateEmailConfirmationTokenAsync(user, cancellationToken);
-        if (tokenResult.IsSuccess)
-        {
-            var encodedToken = HttpUtility.UrlEncode(tokenResult.Value);
-            var baseUrl = configuration["Frontend:BaseUrl"];
-            var verificationLink = $"{baseUrl}/verify-email?userId={user.Id}&token={encodedToken}";
+        // Generate and store email verification OTP
+        var otp = await otpService.GenerateAsync(OtpPurpose.EmailVerification, user.Email!, ck: cancellationToken);
 
-            backgroundJobClient.Enqueue<IEmailService>(x => x.SendVerificationEmailAsync(
+        // Send OTP asynchronously using Hangfire
+        backgroundJobClient.Enqueue<IEmailService>(
+            x => x.SendOtpEmailAsync(
                 user.Email!,
-                verificationLink,
+                otp,
+                OtpPurpose.EmailVerification,
                 CancellationToken.None));
-        }
 
         var authUserDto = new AuthUserDto
         {

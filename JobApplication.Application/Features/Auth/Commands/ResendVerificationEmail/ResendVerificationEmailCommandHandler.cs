@@ -3,6 +3,7 @@ namespace JobApplication.Application.Features.Auth.Commands.ResendVerificationEm
 using Hangfire;
 using JobApplication.Application.Interfaces;
 using JobApplication.Domain.Common;
+using JobApplication.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using System.Threading;
@@ -12,7 +13,7 @@ using System.Web;
 internal class ResendVerificationEmailCommandHandler(
     IIdentityService identityService,
     IBackgroundJobClient backgroundJobClient,
-    IConfiguration configuration) : IRequestHandler<ResendVerificationEmailCommand, Result>
+    IOtpService otpService) : IRequestHandler<ResendVerificationEmailCommand, Result>
 {
     public async Task<Result> Handle(ResendVerificationEmailCommand request, CancellationToken cancellationToken)
     {
@@ -28,18 +29,19 @@ internal class ResendVerificationEmailCommandHandler(
         if (await identityService.IsEmailConfirmedAsync(user, cancellationToken))
             return Result.Success(); // Do not reveal if already verified
 
-        var tokenResult = await identityService.GenerateEmailConfirmationTokenAsync(user, cancellationToken);
-        if (tokenResult.IsFailure)
-            return Result.Success();
-
-        var encodedToken = HttpUtility.UrlEncode(tokenResult.Value);
-        var baseUrl = configuration["Frontend:BaseUrl"];
-        var verificationLink = $"{baseUrl}/verify-email?userId={user.Id}&token={encodedToken}";
-
-        backgroundJobClient.Enqueue<IEmailService>(x => x.SendVerificationEmailAsync(
+        // Generate and store email verification OTP
+        var otp = await otpService.GenerateAsync(
+            OtpPurpose.EmailVerification,
             user.Email!,
-            verificationLink,
-            CancellationToken.None));
+            ck: cancellationToken);
+
+        // Send OTP asynchronously using Hangfire
+        backgroundJobClient.Enqueue<IEmailService>(
+            x => x.SendOtpEmailAsync(
+                user.Email!,
+                otp,
+                OtpPurpose.EmailVerification,
+                CancellationToken.None));
 
         return Result.Success();
     }
